@@ -100,11 +100,11 @@ if __name__ == '__main__':
             time.sleep (60)
         elif check_order() == False:
             sma = SMA(take_info_hloc(),3)
-            put_order('SELL', int(sma[-1]), quoteOrderQty=round((count*sma[-1])-(count*sma[-1]%0.0001),4))
+            put_order('SELL', int(sma[-1]), quoteOrderQty=int((count*sma[-1])))
             while check_order() != False:
                 sma = SMA(take_info_hloc(),3)
                 cancel_order()
-                put_order('SELL', int(sma[-1]), quoteOrderQty=round((count*sma[-1])-(count*sma[-1]%0.0001),4))
+                put_order('SELL', int(sma[-1]), quoteOrderQty=int((count*sma[-1])))
                 time.sleep(60)
             sma = SMA(take_info_hloc(),3)
             shift_sma = list(map(lambda x: x*config_trade.koef,sma))
