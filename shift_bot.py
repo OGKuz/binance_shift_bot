@@ -53,13 +53,13 @@ def put_order (side, price, quoteOrderQty = config_trade.quoteOrderQty, type = '
             symbol=COIN,
             side = side,
             type = type,
-            quoteOrderQty = quoteOrderQty,
+            quantity = (quoteOrderQty/price) - (quoteOrderQty/price%0.0001),
             price = price,
             recvWindow = 59999,
             timeInForce = 'GTC'
             )
     except Exception:
-        return put_order (side, price, quoteOrderQty = config_trade.quoteOrderQty, type = 'limit', API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
+        return put_order (side, price, quoteOrderQty = config_trade.quoteOrderQty, type = 'LIMIT', API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
 
 
 def cancel_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN):  
@@ -70,7 +70,7 @@ def cancel_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECR
             recvWindow = 59999
         )
     except Exception:
-        cancel_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
+        return cancel_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
 
 
 def check_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN):
@@ -87,9 +87,10 @@ def check_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRE
 if __name__ == '__main__':
     sma = SMA(take_info_hloc(),3)
     shift_sma = list(map(lambda x: x*config_trade.koef,sma))
-    cancel_order()
+    if check_order():
+        cancel_order()
     put_order('BUY', int(shift_sma[-1]))
-    count = config_trade.quoteOrderQty/shift_sma[-1]*0.999
+    count = config_trade.quoteOrderQty/shift_sma[-1]*0.998
     while True:
         if time.gmtime()[3:5] == (0,0):
             sma = SMA(take_info_hloc(),3)
@@ -109,7 +110,7 @@ if __name__ == '__main__':
             sma = SMA(take_info_hloc(),3)
             shift_sma = list(map(lambda x: x*config_trade.koef,sma))
             put_order('BUY', int(shift_sma[-1]))
-            count = config_trade.quoteOrderQty/shift_sma[-1]*0.999       
+            count = config_trade.quoteOrderQty/shift_sma[-1]*0.998       
         else:
             time.sleep(60)
     
