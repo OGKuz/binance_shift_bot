@@ -8,7 +8,7 @@ import requests
 from urllib.parse import urlparse, urlencode
 from urllib.request import Request, urlopen
 
-class Binance():
+class Binance(): 
 
     methods = {
             # public methods

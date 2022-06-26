@@ -3,12 +3,12 @@ import statistics as st
 import shift_bot, time, config_test
 
 
-def test_shiftsma (coin, frame, multiply):
+def test_shiftsma (coin, frame, multiply, lensma = 3):
     bot = Binance('','')
 
 
     data = bot.klines(
-        symbol = coin,
+        symbol = coin+'USDT',
         interval = frame,
         limit = 1000)
     hloc4 = list()
@@ -51,6 +51,11 @@ def test_shiftsma (coin, frame, multiply):
     return f'{finish*100}%, count deals:{len(deals)}'
 
 if __name__ == '__main__':
-
-    print (test_shiftsma (coin=config_test.coin, frame=config_test.frame, multiply=config_test.multiply))
-    time.sleep(120)
+    coins = ['UNI']
+    result = list()
+    for i in coins:
+        try:
+            result.append((i,test_shiftsma (coin=i, frame=config_test.frame, multiply=config_test.multiply, lensma=3)))
+        except:
+            continue
+    print(result)

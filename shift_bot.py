@@ -3,7 +3,7 @@ from binance_api import Binance
 import config_trade
 import statistics as st
 import time
-
+import requests
 
 def SMA(data, period):
     if len(data) == 0:
@@ -31,11 +31,11 @@ def SMA(data, period):
     return result
 
 
-def take_info_hloc(API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET, COIN=config_trade.COIN, FRAME=config_trade.FRAME, Limit = 50) -> list:
+def take_info_hloc(API_KEY, API_SECRET, COIN, FRAME, Limit = 50) -> list:
     bot = Binance(API_KEY=API_KEY, API_SECRET=API_SECRET)
     try:
         data = bot.klines(
-            symbol = COIN,
+            symbol = COIN+'USDT',
             interval = FRAME,
             limit = Limit)
         hloc4 = list()
@@ -46,72 +46,129 @@ def take_info_hloc(API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SEC
         return take_info_hloc(API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET, COIN=config_trade.COIN, FRAME=config_trade.FRAME, Limit = 50)
 
 
-def put_order (side, price, quoteOrderQty = config_trade.quoteOrderQty, type = 'LIMIT', API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN):
+def put_order (side, price, quoteOrderQty, API_KEY, API_SECRET, COIN, type = 'LIMIT'):
     bot = Binance(API_KEY=API_KEY, API_SECRET=API_SECRET)
+    def take_prec(COIN=COIN):
+        prec = requests.get(f'https://api.binance.com/api/v3/exchangeInfo?symbol={COIN}USDT').json()
+        return(float(prec['symbols'][0]['filters'][2]['stepSize']))
+    print (quoteOrderQty)
     try:
+        if side == 'BUY':
+            quantity = round((quoteOrderQty/price) - ((quoteOrderQty/price)%take_prec()), 7)
+            print (quantity)
+        elif side == 'SELL':
+            quantity = round(quoteOrderQty -  ((quoteOrderQty/price)%take_prec()), 7)
+            print (quantity)
+        '''a = bot.exchangeInfo()['symbols']
+        for i in a:
+            if i['symbol'] == 'BTCUSDT':
+                print (i)'''
         return bot.createOrder(
-            symbol=COIN,
+            symbol=COIN+'USDT',
             side = side,
             type = type,
-            quantity = (quoteOrderQty/price) - (quoteOrderQty/price%0.0001),
-            price = price,
+            quantity = quantity,
+            price = round(price - price%0.01,2),
             recvWindow = 59999,
             timeInForce = 'GTC'
-            )
+                )
     except Exception:
-        return put_order (side, price, quoteOrderQty = config_trade.quoteOrderQty, type = 'LIMIT', API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
+        print ('EROR EROR EROR ORDER PUT')
+        return put_order (side, price, quoteOrderQty, type, API_KEY, API_SECRET, COIN)
 
 
-def cancel_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN):  
+def cancel_order (API_KEY, API_SECRET,COIN):  
     bot = Binance(API_KEY=API_KEY, API_SECRET=API_SECRET)
     try:
         return bot.cancelOrders(
-            symbol = COIN,
+            symbol = COIN+'USDT',
             recvWindow = 59999
         )
     except Exception:
         return cancel_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
 
 
-def check_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN):
+def check_order (API_KEY, API_SECRET,COIN):
     bot = Binance(API_KEY=API_KEY, API_SECRET=API_SECRET)
     try:
         return bot.openOrders(
-            symbol = COIN,
+            symbol = COIN+'USDT',
             recvWindow = 59999
         )
     except Exception:
         check_order (API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
 
 
-if __name__ == '__main__':
-    sma = SMA(take_info_hloc(),3)
-    shift_sma = list(map(lambda x: x*config_trade.koef,sma))
-    if check_order():
-        cancel_order()
-    put_order('BUY', int(shift_sma[-1]))
-    count = config_trade.quoteOrderQty/shift_sma[-1]*0.998
+def balance_check(API_KEY, API_SECRET):
+    bot = Binance(API_KEY=API_KEY, API_SECRET=API_SECRET)
+    try:
+        balance = bot.account()
+        return balance
+    except:
+        return balance_check(API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET,COIN=config_trade.COIN)
+
+
+def main(API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET, COIN=config_trade.COIN, FRAME = config_trade.FRAME):
     while True:
-        if time.gmtime()[3:5] == (0,0):
-            sma = SMA(take_info_hloc(),3)
-            shift_sma = list(map(lambda x: x*config_trade.koef,sma))
-            cancel_order()
-            put_order('BUY', int(shift_sma[-1]))
-            count = config_trade.quoteOrderQty/shift_sma[-1]
-            time.sleep (60)
-        elif check_order() == False:
-            sma = SMA(take_info_hloc(),3)
-            put_order('SELL', int(sma[-1]), quoteOrderQty=int((count*sma[-1])))
-            while check_order() != False:
-                sma = SMA(take_info_hloc(),3)
-                cancel_order()
-                put_order('SELL', int(sma[-1]), quoteOrderQty=int((count*sma[-1])))
-                time.sleep(60)
-            sma = SMA(take_info_hloc(),3)
-            shift_sma = list(map(lambda x: x*config_trade.koef,sma))
-            put_order('BUY', int(shift_sma[-1]))
-            count = config_trade.quoteOrderQty/shift_sma[-1]*0.998       
-        else:
+        time_now = time.gmtime()[3:5]
+        if time_now[0] == 0 and time_now[1] == 1:
+            orders = check_order(API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN)
+            print (orders)
+            if len(orders) != 0:
+                print(cancel_order(API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN))
+            data = take_info_hloc(API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN, FRAME=FRAME, Limit=50)
+            sma = SMA(data=data, period=3)[-1]
+            shift = sma * config_trade.koef
+            print (shift,sma)
+            person_data_raw = balance_check(API_KEY=API_KEY, API_SECRET=API_SECRET)['balances']
+            person_data = dict()
+            for i in person_data_raw:
+                if i['asset'] == f'{COIN}' or i['asset'] == 'USDT':
+                    person_data[i['asset']] = i['free']
+            print (person_data)
+            if float(person_data[COIN])*sma < 12 and float(person_data['USDT']) > 12:
+                if config_trade.quoteOrderQty:
+                    put_order('BUY', shift, round(float(config_trade.quoteOrderQty)*0.98, 0), API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN, type='LIMIT')
+                else:
+                    put_order('BUY', shift, round(float(person_data['USDT'])*0.97, 0), API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN, type='LIMIT')
+            if float(person_data[COIN])*sma > 12:
+                put_order('SELL', sma, float(person_data[f'{COIN}']), type='LIMIT', API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN)
+            else:
+                pass
             time.sleep(60)
-    
+        else:
+            orders = check_order(API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN)
+            if len(orders) == 0:
+                data = take_info_hloc(API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN, FRAME=FRAME, Limit=50)
+                sma = SMA(data=data, period=3)[-1]
+                shift = sma * config_trade.koef
+                print (shift,sma)
+                person_data_raw = balance_check(API_KEY=API_KEY, API_SECRET=API_SECRET)['balances']
+                person_data = dict()
+                for i in person_data_raw:
+                    if i['asset'] == f'{COIN}' or i['asset'] == 'USDT':
+                        person_data[i['asset']] = i['free']
+                print (person_data)
+                if float(person_data[COIN])*sma > 12:
+
+                    put_order('SELL', sma, float(person_data[f'{COIN}']), type='LIMIT', API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN)
+
+                elif float(person_data[COIN])*sma < 12 and float(person_data['USDT']) > 12:
+
+                    if config_trade.quoteOrderQty:
+                        put_order('BUY', shift, round(float(config_trade.quoteOrderQty)*0.98, 0), API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN, type='LIMIT')
+                    else:
+                        put_order('BUY', shift, round(float(person_data['USDT'])*0.97, 0), API_KEY=API_KEY, API_SECRET=API_SECRET, COIN=COIN, type='LIMIT')
+                    
+                else:
+                    pass
+                time.sleep(60)
+            else:
+                time.sleep(60)
+
+        
+if __name__ == '__main__':
+    main()
+    #print (check_order(API_KEY=config_trade.API_KEY, API_SECRET=config_trade.API_SECRET, COIN=config_trade.COIN))
+    ...
 

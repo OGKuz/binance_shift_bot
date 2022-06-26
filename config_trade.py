@@ -1,6 +1,6 @@
-API_KEY = ''
-API_SECRET = ''
-COIN = 'BTCUSDT'
-FRAME = '1d'
-quoteOrderQty = 1000
-koef = 0.9
+API_KEY = 'Your API'
+API_SECRET = 'Your secret'
+COIN = 'Code of coin'
+FRAME = '1d' #лучше так и оставить
+quoteOrderQty = 0 # сумма, на сколько бот покупает но не менее 15$, если хотите использовать весь баланс доступный на спот аккаунте оставьте это значение равным 0
+koef = 0.9 #коэффициэнт для работы shift_sma
